@@ -97,3 +97,33 @@ app.post("/send-invoice", async (req, res) => {
       service: "gmail",
       auth: {
         user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    const itemList = items
+      .map(item => `${item.name} x ${item.qty} = ₹${item.price}`)
+      .join("\n");
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: `Invoice #${orderId}`,
+      text: `Items:\n${itemList}\n\nTotal: ₹${totalAmount}`
+    });
+
+    res.json({ message: "Invoice sent successfully" });
+
+  } catch (err) {
+    res.status(500).json({ message: "Failed to send invoice" });
+  }
+});
+
+
+// ================= PORT =================
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
