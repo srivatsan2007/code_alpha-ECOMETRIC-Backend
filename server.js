@@ -34,12 +34,17 @@ const User = mongoose.model("User", UserSchema);
 
 
 // ================= REGISTER =================
-
 app.post("/register", async (req, res) => {
   try {
     const { name, mobile, address, pincode, email, password, role } = req.body;
 
+    // Basic validation
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
     const existingUser = await User.findOne({ email });
+
     if (existingUser) {
       return res.status(400).json({ message: "Email already registered" });
     }
@@ -56,13 +61,24 @@ app.post("/register", async (req, res) => {
 
     await newUser.save();
 
-    res.json({ message: "User registered successfully" });
+    res.status(201).json({ message: "User registered successfully" });
 
   } catch (err) {
+
+    console.error("REGISTER ERROR 👉", err);
+
+    // Handle Mongo duplicate key error
+    if (err.code === 11000) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
+
     res.status(500).json({ message: "Server error" });
   }
 });
 
+
+
+    
 
 // ================= LOGIN =================
 
@@ -127,3 +143,4 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
