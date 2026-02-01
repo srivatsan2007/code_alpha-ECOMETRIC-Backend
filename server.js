@@ -95,10 +95,12 @@ app.post("/send-invoice", async (req, res) => {
     const { email, orderId, items, totalAmount } = req.body;
 
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp-relay.brevo.com",
+      port: 587,
+      secure: false,
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        user: process.env.EMAIL,     // Brevo login
+        pass: process.env.PASSWORD  // Brevo SMTP key
       }
     });
 
@@ -107,7 +109,7 @@ app.post("/send-invoice", async (req, res) => {
       .join("\n");
 
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: "Ecometrix <a1456e001@smtp-brevo.com>",
       to: email,
       subject: `Invoice #${orderId}`,
       text: `Items:\n${itemList}\n\nTotal: ₹${totalAmount}`
@@ -117,12 +119,14 @@ app.post("/send-invoice", async (req, res) => {
 
   } catch (err) {
     console.error("INVOICE ERROR:", err);
-    res.status(500).json({ message: "Failed to send invoice" });
+    res.status(500).json({ message: err.message });
   }
 });
 
+     
 // ================= START SERVER =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
