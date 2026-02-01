@@ -1,20 +1,20 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const bcrypt = require("bcrypt"); // ✅ for hashing passwords
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 const app = express();
 
-// Middleware
+// ================= MIDDLEWARE =================
 app.use(cors());
 app.use(express.json());
 
-// ================= MongoDB =================
-mongoose.connect(process.env.MONGO_URI)
+// ================= MONGODB =================
+mongoose
+  .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected"))
-  .catch(err => console.log("MongoDB connection error:", err));
+  .catch(err => console.error("MongoDB error:", err));
 
 // ================= USER SCHEMA =================
 const UserSchema = new mongoose.Schema({
@@ -23,7 +23,7 @@ const UserSchema = new mongoose.Schema({
   address: { type: String, required: true },
   pincode: { type: String, required: true },
   email: { type: String, unique: true, required: true },
-  password: { type: String, required: true },
+  password: { type: String, required: true }, // plain text
   role: { type: String, enum: ["user", "admin"], default: "user" }
 });
 
@@ -34,28 +34,22 @@ app.post("/register", async (req, res) => {
   try {
     const { name, mobile, address, pincode, email, password, role } = req.body;
 
-    // Basic validation
     if (!name || !mobile || !address || !pincode || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // Check if email already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "Email already registered" });
     }
 
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create new user
     const newUser = new User({
       name,
       mobile,
       address,
       pincode,
       email,
-      password: hashedPassword,
+      password, // no hashing
       role: role || "user"
     });
 
@@ -64,13 +58,7 @@ app.post("/register", async (req, res) => {
     res.status(201).json({ message: "User registered successfully" });
 
   } catch (err) {
-    console.error("REGISTER ERROR 👉", err);
-
-    // Handle Mongo duplicate key error
-    if (err.code === 11000) {
-      return res.status(400).json({ message: "Email already exists" });
-    }
-
+    console.error("REGISTER ERROR:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -81,11 +69,13 @@ app.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "User not found" });
+    if (!user) {
+      return res.status(400).json({ message: "User not found" });
+    }
 
-    // Compare hashed password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid password" });
+    if (password !== user.password) {
+      return res.status(400).json({ message: "Invalid password" });
+    }
 
     res.json({
       message: "Login successful",
@@ -94,7 +84,7 @@ app.post("/login", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("LOGIN ERROR 👉", err);
+    console.error("LOGIN ERROR:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -126,12 +116,12 @@ app.post("/send-invoice", async (req, res) => {
     res.json({ message: "Invoice sent successfully" });
 
   } catch (err) {
-    console.error("INVOICE ERROR 👉", err);
+    console.error("INVOICE ERROR:", err);
     res.status(500).json({ message: "Failed to send invoice" });
   }
 });
 
-// ================= PORT =================
+// ================= START SERVER =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
